@@ -2,9 +2,13 @@ name: Convert Python to HTML
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'notebooks/*.py'
   pull_request:
+    branches:
+      - main
     paths:
       - 'notebooks/*.py'
 
