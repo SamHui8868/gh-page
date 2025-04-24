@@ -3,6 +3,7 @@ name: Convert Python to HTML
 permissions:
   contents: write
   pages: write
+  id-token: write    # Required for Pages deployment
 
 on:
   push:
@@ -17,7 +18,7 @@ on:
       - 'notebooks/*.py'
 
 jobs:
-  convert:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -42,11 +43,18 @@ jobs:
             fi
           done
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        if: github.ref == 'refs/heads/main'
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./notebooks
-          publish_branch: gh-pages
-          keep_files: true
+          path: ./notebooks
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
