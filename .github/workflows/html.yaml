@@ -1,60 +1,56 @@
-name: Convert Python to HTML
+name: Deploy Notebooks
 
 permissions:
   contents: write
   pages: write
-  id-token: write    # Required for Pages deployment
+  id-token: write
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'notebooks/*.py'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'notebooks/*.py'
+    branches: [main]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install jupyter nbconvert jupytext
-          
-      - name: Convert PY to HTML
-        run: |
-          cd notebooks
-          for file in *.py; do
-            if [ -f "$file" ]; then
-              jupytext --to notebook "$file"
-              jupyter nbconvert --to html "${file%.py}.ipynb"
-            fi
-          done
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./notebooks
-
   deploy:
-    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Create Site
+        run: |
+          pip install jupyter nbconvert jupytext
+          mkdir -p _site
+          cd notebooks
+          # Create index
+          echo "# Notebook Index" > index.md
+          echo "## Available notebooks:" >> index.md
+          for f in *.py; do
+            if [ -f "$f" ]; then
+              name=$(basename "$f" .py)
+              echo "* [$name]($name.html)" >> index.md
+            fi
+          done
+          jupyter nbconvert --to html index.md --output-dir=../_site
+          # Convert notebooks
+          for f in *.py; do
+            if [ -f "$f" ]; then
+              jupytext --to notebook "$f"
+              jupyter nbconvert --to html "${f%.py}.ipynb" --output-dir=../_site
+            fi
+          done
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
