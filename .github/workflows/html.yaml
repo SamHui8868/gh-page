@@ -1,5 +1,9 @@
 name: Convert Python to HTML
 
+permissions:
+  contents: write
+  pages: write
+
 on:
   push:
     branches:
