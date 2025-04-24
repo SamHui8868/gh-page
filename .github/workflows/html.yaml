@@ -3,19 +3,19 @@ name: Convert Python to HTML and Deploy to GitHub Pages
 permissions:
   contents: write
   pages: write
-  id-token: write    # Required for GitHub Pages deployment
+  id-token: write
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'notebooks/*.py'
+      - 'notebooks/**'
   pull_request:
     branches:
       - main
     paths:
-      - 'notebooks/*.py'
+      - 'notebooks/**'
 
 jobs:
   build:
@@ -34,29 +34,37 @@ jobs:
           python -m pip install --upgrade pip
           pip install jupyter nbconvert jupytext
 
-      - name: Convert PY to HTML
+      - name: Convert PY/ipynb to HTML
         run: |
-          mkdir -p public  # Create a directory to store the HTML files
+          mkdir -p public
           cd notebooks
-          for file in *.py; do
+          for file in *; do
             if [ -f "$file" ]; then
-              jupytext --to notebook "$file"
-              jupyter nbconvert --to html "${file%.py}.ipynb" --output-dir=../public
+              if [[ "$file" == *.py ]]; then
+                jupytext --to notebook "$file"
+                jupyter nbconvert --to html "${file%.py}.ipynb" --output-dir=../public
+              elif [[ "$file" == *.ipynb ]]; then
+                jupyter nbconvert --to html "$file" --output-dir=../public
+              fi
             fi
           done
-
-      - name: Create index.html (if needed)
-        run: |
-          cd public
-          if [ ! -f "index.html" ]; then
-            echo "<h1>Generated Content</h1><p>This page was generated from Python notebooks.</p>" > index.html
-          fi
+          cd ../public
+          #  Create a index.html that links to the generated content
+          echo "<h1>Generated Content</h1>" > index.html
+          echo "<p>This page displays content generated from Python notebooks:</p>" >> index.html
+          echo "<ul>" >> index.html
+          for generated_file in *.html; do
+            if [[ "$generated_file" != "index.html" ]]; then
+              echo "  <li><a href=\"$generated_file\">$generated_file</a></li>" >> index.html
+            fi
+          done
+          echo "</ul>" >> index.html
           echo "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" >> index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./public  # Upload the 'public' directory
+          path: ./public
 
   deploy:
     needs: build
