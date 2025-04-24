@@ -1,0 +1,44 @@
+name: Convert Python to HTML
+
+on:
+  push:
+    paths:
+      - 'notebooks/*.py'
+  pull_request:
+    paths:
+      - 'notebooks/*.py'
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install jupyter nbconvert jupytext
+          
+      - name: Convert PY to HTML
+        run: |
+          cd notebooks
+          for file in *.py; do
+            if [ -f "$file" ]; then
+              jupytext --to notebook "$file"
+              jupyter nbconvert --to html "${file%.py}.ipynb"
+            fi
+          done
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./notebooks
+          publish_branch: gh-pages
+          keep_files: true
