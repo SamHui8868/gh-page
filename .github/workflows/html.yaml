@@ -1,9 +1,9 @@
-name: Convert Python to HTML
+name: Convert Python to HTML and Deploy to GitHub Pages
 
 permissions:
   contents: write
   pages: write
-  id-token: write    # Required for Pages deployment
+  id-token: write    # Required for GitHub Pages deployment
 
 on:
   push:
@@ -21,49 +21,42 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install jupyter nbconvert jupytext
-          
-      - name: Create Site Directory
-        run: mkdir -p _site
-          
-      - name: Generate Index
-        run: |
-          echo "# Notebook Index" > _site/index.md
-          echo "## Available Notebooks:" >> _site/index.md
-          for file in notebooks/*.py; do
-            if [ -f "$file" ]; then
-              name=$(basename "$file" .py)
-              echo "* [$name]($name.html)" >> _site/index.md
-            fi
-          done
-          jupyter nbconvert --to html _site/index.md --output-dir=_site
-          rm _site/index.md
-          
+
       - name: Convert PY to HTML
         run: |
+          mkdir -p public  # Create a directory to store the HTML files
           cd notebooks
           for file in *.py; do
             if [ -f "$file" ]; then
               jupytext --to notebook "$file"
-              jupyter nbconvert --to html "${file%.py}.ipynb" --output-dir=../_site
-              rm "${file%.py}.ipynb"
+              jupyter nbconvert --to html "${file%.py}.ipynb" --output-dir=../public
             fi
           done
+
+      - name: Create index.html (if needed)
+        run: |
+          cd public
+          if [ ! -f "index.html" ]; then
+            echo "<h1>Generated Content</h1><p>This page was generated from Python notebooks.</p>" > index.html
+          fi
+          echo "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" >> index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: ./public  # Upload the 'public' directory
 
   deploy:
     needs: build
